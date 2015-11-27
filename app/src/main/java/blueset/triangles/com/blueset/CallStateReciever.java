@@ -2,52 +2,39 @@ package blueset.triangles.com.blueset;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.media.AudioManager;
 import android.telephony.TelephonyManager;
-import android.widget.Toast;
 
+import blueset.triangles.com.blueset.util.ConstantUtil;
 import blueset.triangles.com.blueset.util.LogUtil;
 
 /**
  * Created by mittu on 11/7/2015.
  */
 public class CallStateReciever extends BroadcastReceiver {
+
+    public static String ACTION_OUTGOING_CALL = "android.intent.action.NEW_OUTGOING_CALL";
+    public static String ACTION_INCOMING_CALL = "android.intent.action.PHONE_STATE";
+
     @Override
     public void onReceive(Context context, Intent intent) {
-        LogUtil.print("broadcast event reccieved " + intent.getAction());
-        AudioManager audioManager = (AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
-        String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
-        String msg = "Phone state changed to " + state;
-        String incomingNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
-        msg += ". Incoming number is " + incomingNumber;
-        SharedPreferences sharedPref2 = context.getSharedPreferences("MUSIC_STATE_PREF", Context.MODE_PRIVATE);
-        boolean musicState = sharedPref2.getBoolean("MUSIC_STATE", false);
-        if(!musicState) {
 
-            Intent blueIntent = new Intent(context, CallStateHandlerService.class);
-            if (TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
-                blueIntent.putExtra("switchBluetoothToState", true);
-                context.startService(blueIntent);
-            } else if (TelephonyManager.EXTRA_STATE_IDLE.equals(state)) {
-                blueIntent.putExtra("switchBluetoothToState", false);
-                context.startService(blueIntent);
+        String broadcastAction = intent.getAction();
+        LogUtil.print("broadcast event recieved " + intent.getAction());
+        if(broadcastAction.equals(ConstantUtil.ACTION_MUSIC_STATE_CHANGE))
+        {
+            if(intent.hasExtra("playing")) {
+                Intent mediaIntent = new Intent(context, MusicStateChangeService.class);
+                mediaIntent.putExtra(ConstantUtil.MUSIC_STATE, true);
+                mediaIntent.putExtra(ConstantUtil.INTENT_ACTION_PLAYING, intent.getBooleanExtra(ConstantUtil.INTENT_ACTION_PLAYING, false));
+                context.startService(mediaIntent);
             }
         }
-        Toast.makeText(context, msg, Toast.LENGTH_LONG).show();
-        if(intent.hasExtra("playing")) {
-            SharedPreferences sharedPref = context.getSharedPreferences("MUSIC_STATE_PREF", Context.MODE_PRIVATE);
-            SharedPreferences.Editor editor = sharedPref.edit();
-            if(intent.getBooleanExtra("playing", false)) {
-                editor.putBoolean("MUSIC_STATE", true);
-            } else {
-                LogUtil.print("not playing");
-                editor.putBoolean("MUSIC_STATE", false);
-            }
-            editor.commit();
-            SharedPreferences sharedPref1 = context.getSharedPreferences("MUSIC_STATE_PREF", Context.MODE_PRIVATE);
-            LogUtil.print("music_state " + sharedPref1.getBoolean("MUSIC_STATE", false));
-
+        else {
+            Intent blueIntent = new Intent(context, CallStateHandlerService.class);
+            blueIntent.putExtra(ConstantUtil.CUSTOM_ACTION_CALL_STATE, broadcastAction);
+            String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
+            blueIntent.putExtra(TelephonyManager.EXTRA_STATE, state);
+            context.startService(blueIntent);
         }
     }
 }
